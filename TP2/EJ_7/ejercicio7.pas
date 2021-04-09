@@ -38,11 +38,12 @@ stock actual esté por debajo del stock mínimo permitido.
 }
 program ejercicio7;
 uses crt;
+CONST valoralto = 32767;
 TYPE
 	reg_maestro = record
 		cod_prod : integer;
 		nombre_comercial:String[10];
-		precio_venta:real;
+		precio_venta:integer;
 		stock_actual:integer;
 		stock_minimo:integer;
 	
@@ -56,37 +57,6 @@ TYPE
 	archivo_maestro = file of reg_maestro;
 	archivo_detalle = file of reg_detalle;
 	
-	
-
-
-{procedure importarDetalle( var d:archivoDetalle ; var t:text);
-var
-	r:alumnoD;
-begin
-	rewrite(d);
-	reset(t);
-	while ( not eof(t) ) do begin
-		readln(t,r.codAlumno,r.materia,r.conFinal);
-		write(d,r);
-		end;
-	close(d);
-	close(t);
-	end;
-
-procedure exportarMaestro( var a:archivoMaestro; var t:text);
-var 
-	r:alumnoM;
-begin
-	rewrite(t);
-	reset(a);
-	while (not eof(a)) do begin
-		read(a,r);
-		writeln(t,r.codAlumno,' ',r.apellido,r.nombre);
-		writeln(t,r.cantMateriaSinFinal,'',r.cantMateriaFinal);
-	end;
-	close(t);
-	close(a);
-end;}
 
 procedure importarMaestro(var m:archivo_maestro ; var t:text);
 var
@@ -126,6 +96,84 @@ begin
 	close(arch_m);
 end;
 
+procedure importarDetalle(var d:archivo_detalle ; var t:text);
+var
+	r:reg_detalle;
+begin
+	rewrite(d);
+	reset(t);
+	Writeln('************COMIENZO DE CARGA DEL DETALLE*****************');
+	Writeln('--------------------------------');
+	while (not eof(t)) do begin
+		readln(t,r.cod_producto , r.cant_vend);;
+		writeln('Cod: ',r.cod_producto);
+		writeln('Cant Vendida: ',r.cant_vend);
+		write(d,r);
+		Writeln('--------------------------------');
+		end;
+	close(d);
+	close(t);
+	Writeln('************FIN DE CARGA DEL DETALLE*****************');
+end;
+
+procedure listarEnPantallaDetalle (var d: archivo_detalle);
+var
+	r : reg_detalle;
+begin
+	reset(d);
+	Writeln('--------------------------------');
+	while (not eof(d)) do begin
+		read(d , r);
+		writeln('Cod: ',r.cod_producto);
+		writeln('Cant Vendida: ',r.cant_vend);
+		Writeln('--------------------------------');
+	end;
+	close(d);
+end;
+
+procedure leer(	var archivo: archivo_detalle; var dato: reg_detalle);
+begin
+    if (not(EOF(archivo))) then 
+       read (archivo, dato)
+    else 
+		    dato.cod_producto := valoralto;
+end;
+
+
+procedure actualizarMaestro (var m:archivo_maestro ; var d:archivo_detalle);
+var
+	r_m : reg_maestro;
+	r_d : reg_detalle;
+	total_venta_unidades: integer;
+	aux:integer;
+begin
+	
+	reset(m);
+	reset(d);
+	
+	read(m, r_m);
+    leer(d, r_d);
+    
+	while (r_d.cod_producto <> valoralto) do begin
+		
+		aux:= r_d.cod_producto;
+		total_venta_unidades:= 0;
+		
+		while (aux = r_d.cod_producto) do begin 
+			total_venta_unidades:= total_venta_unidades + r_d.cant_vend;
+			leer(d , r_d);
+		end;
+		while (aux <> r_m.cod_prod) do read(m , r_m);
+		seek(m, filepos(m)-1);
+		r_m.stock_actual :=  r_m.stock_actual - total_venta_unidades;
+		write(m , r_m);
+		
+		if (not(EOF(m))) then read(m, r_m);
+		
+	end;
+	close(m);
+	close(d);
+end;
 
 procedure mostrarMenu (var option:integer);
 
@@ -143,20 +191,28 @@ begin
 end;
 
 VAR
-	text_maestro : text;
+	text_productos , text_ventas : text;
 	export_text_maestro:text;
 	arch_maestro : archivo_maestro;
+	arch_detalle : archivo_detalle;
 	option : integer;
 BEGIN
-	assign(text_maestro , 'productos.txt');
+	assign(text_productos , 'productos.txt');
+	assign(text_ventas, 'ventas.txt'); 
 	assign(arch_maestro , 'maestro.dat');
+	assign(arch_detalle , 'detalle.dat');
+	
 	assign(export_text_maestro, 'reporte.txt');
+	
 	mostrarMenu(option);
 	
 	while option <> 0 do begin 
 		case (option) of
-			1: importarMaestro(arch_maestro,text_maestro);
+			1: importarMaestro(arch_maestro,text_productos);
 			2: exportarMaestro(export_text_maestro , arch_maestro);
+			3: importarDetalle(arch_detalle , text_ventas);
+			4: listarEnPantallaDetalle(arch_detalle);
+			5: actualizarMaestro(arch_maestro , arch_detalle);
 		end;
 		writeln('Enter para limpiar pantalla');
 		readln();
